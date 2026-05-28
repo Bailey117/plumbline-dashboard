@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LME Dashboard — visual explorations</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #EFEAE0; font-family: "Geist", system-ui, sans-serif; color: #1B1A15; }
+  * { box-sizing: border-box; }
+  /* keep canvas root crisp */
+  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  /* range inputs */
+  input[type="range"] { height: 14px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="variant_daylight.jsx"></script>
+<script type="text/babel" src="variant_console.jsx"></script>
+<script type="text/babel" src="variant_atlas.jsx"></script>
+
+<script type="text/babel">
+  const { DesignCanvas, DCSection, DCArtboard, Daylight, DaylightSuppliers, Console_, Atlas } = window;
+
+  function App() {
+    return (
+      <DesignCanvas>
+        <DCSection
+          id="intro"
+          title="LME / Battery Recycling Dashboard"
+          subtitle="Three visual directions for the sales & ops cost dashboard — same data, same nav, different tone. Drag to compare; double-click an artboard to focus."
+        >
+          <DCArtboard id="readme" label="Brief & assumptions" width={520} height={960}>
+            <Readme/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="v1"
+          title="A — Daylight"
+          subtitle="Clean SaaS · Linear/Stripe-leaning · indigo accent on white. Tabular numerics, sparklines, an Australia choropleth side-panel, and a what-if calculator. The default safe choice."
+        >
+          <DCArtboard id="v1-main" label="Market overview" width={1480} height={960}>
+            <Daylight/>
+          </DCArtboard>
+          <DCArtboard id="v1-supp" label="Supplier roster" width={1480} height={720}>
+            <DaylightSuppliers/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="v2"
+          title="B — Console"
+          subtitle="Dense, dark, mono-heavy · Bloomberg-lite. Function keys, ticker strip, candle chart, real-time alerts feed. For users who live in the terminal all day."
+        >
+          <DCArtboard id="v2-main" label="Lead terminal" width={1480} height={960}>
+            <Console_/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="v3"
+          title="C — Atlas"
+          subtitle="Editorial · warm paper · Australia as the hero · Newsreader serif headings. Reads more like a daily briefing than a control panel. Best for execs and morning standups."
+        >
+          <DCArtboard id="v3-main" label="The almanac" width={1480} height={960}>
+            <Atlas/>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+  }
+
+  function Readme() {
+    const Row = ({k, v}) => (
+      <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 10, padding: "5px 0", borderBottom: "1px dashed #D9D0BA", fontSize: 12 }}>
+        <span style={{ color: "#8A8270", letterSpacing: 0.4, textTransform: "uppercase", fontSize: 10, fontWeight: 600 }}>{k}</span>
+        <span style={{ color: "#1B1A15" }}>{v}</span>
+      </div>
+    );
+    return (
+      <div style={{ padding: "28px 28px", background: "#FBF7EC", height: "100%", fontFamily: "Geist, sans-serif", overflow: "hidden" }}>
+        <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#9C3A1A", fontWeight: 700 }}>
+          For your review
+        </div>
+        <h1 style={{ fontFamily: "Newsreader, serif", fontSize: 30, fontWeight: 500, letterSpacing: -0.3, margin: "4px 0 14px", lineHeight: 1.05 }}>
+          LME dashboard,<br/><em style={{ color: "#9C3A1A" }}>three directions.</em>
+        </h1>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: "#3a382f", margin: "0 0 16px" }}>
+          Same data model, three visual takes. Each shows the headline market inputs
+          (LME Pb, RBA, AIP diesel, fuel levy), an AU map, a supplier list with
+          <strong> % of LME </strong>and freight, and a what-if calculator. Pick a
+          direction and I'll build it out as a clickable prototype with tweaks.
+        </p>
+
+        <div style={{ background: "#F4EFE3", border: "1px solid #D9D0BA", padding: "12px 14px", marginBottom: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "#5C5546", fontWeight: 700, marginBottom: 6 }}>
+            What's assumed
+          </div>
+          <Row k="LME source"   v="Cash settlement, displayed USD & AUD/tonne"/>
+          <Row k="RBA"          v="Daily 4pm AUD/USD fix"/>
+          <Row k="AIP"          v="National terminal gate price, AUD/L ex GST"/>
+          <Row k="Freight"      v="5 zones × diesel-indexed base $/t (Z1–Z5)"/>
+          <Row k="Supplier $"   v="% of LME AUD spot · landed = price + freight"/>
+          <Row k="SAP feed"     v="Days since last pickup · avg monthly tonnes"/>
+          <Row k="States"       v="NSW VIC QLD WA SA TAS NT ACT"/>
+          <Row k="History"      v="90 days default, switchable to 7D / 30D / 1Y / All"/>
+        </div>
+
+        <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "#5C5546", fontWeight: 700, marginBottom: 6 }}>
+          Open questions
+        </div>
+        <ol style={{ paddingLeft: 18, fontSize: 12, lineHeight: 1.5, color: "#3a382f", margin: 0 }}>
+          <li>Do supplier % rates change with contracts, or do you negotiate live?</li>
+          <li>Should the freight zone be set per-supplier, or per-pickup site?</li>
+          <li>Any second metals (Cu, steel scrap) we should leave space for?</li>
+          <li>SAP import — daily batch or live? Affects "last pickup" freshness.</li>
+          <li>Alerts: who's on the receiving end, and via what channel?</li>
+        </ol>
+
+        <div style={{ position: "absolute", bottom: 20, left: 28, right: 28, fontSize: 10, color: "#8A8270", borderTop: "1px solid #D9D0BA", paddingTop: 8 }}>
+          → After you pick a direction, I'll wire interactions (filters, drill-in, date scrubber) and add a tweaks panel for theme · chart style · landing view.
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
