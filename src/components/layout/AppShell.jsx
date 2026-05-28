@@ -4,7 +4,7 @@ import AlertsPanel from './AlertsPanel';
 import SearchPalette from './SearchPalette';
 import { useAlerts } from '../../api/hooks';
 
-export default function AppShell({ children, onTweaksOpen }) {
+export default function AppShell({ children }) {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { alerts } = useAlerts();
@@ -36,7 +36,6 @@ export default function AppShell({ children, onTweaksOpen }) {
       <Header
         onSearchOpen={() => setSearchOpen(true)}
         onAlertsOpen={() => setAlertsOpen(true)}
-        onTweaksOpen={onTweaksOpen}
         alertCount={alertCount}
       />
 

@@ -36,11 +36,12 @@ function saveToStorage(state) {
 export function ImportDataProvider({ children }) {
   const [importState, setImportState] = useState(() => loadFromStorage());
 
-  const applyImport = (supplierStats, fileInfo) => {
+  const applyImport = (supplierStats, fileInfo, newSupplierCodes = []) => {
     const state = {
       supplierStats,
       fileInfo,
       appliedAt: new Date(),
+      newSuppliers: newSupplierCodes,
     };
     setImportState(state);
     saveToStorage(state);

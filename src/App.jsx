@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { RouteProvider, useRoute } from './context/RouteContext';
 import AppShell from './components/layout/AppShell';
-import TweaksPanel from './components/tweaks/TweaksPanel';
 import { applyTheme } from './theme';
 import { ImportDataProvider } from './context/ImportDataContext';
+import { FreightZonesProvider } from './context/FreightZonesContext';
 
 // Pages
 import OverviewPage from './pages/OverviewPage';
@@ -15,79 +15,52 @@ import FreightPage from './pages/FreightPage';
 import ReportsPage from './pages/ReportsPage';
 import SAPImportPage from './pages/SAPImportPage';
 
-const TWEAK_DEFAULTS = {
-  accent: "indigo",
-  chartStyle: "area",
-  landing: "overview",
-  dark: false,
-  density: "comfortable",
-};
-
-function PageRouter({ tweaks }) {
+function PageRouter() {
   const { route } = useRoute();
 
   switch (route.name) {
     case "overview":
-      return <OverviewPage tweaks={tweaks} />;
+      return <OverviewPage />;
     case "suppliers":
-      return <SuppliersPage tweaks={tweaks} />;
+      return <SuppliersPage />;
     case "supplier":
-      return <SupplierDetailPage id={route.id} tweaks={tweaks} />;
+      return <SupplierDetailPage id={route.id} />;
     case "states":
-      return <StatesPage tweaks={tweaks} />;
+      return <StatesPage />;
     case "rates":
-      return <RatesPage tweaks={tweaks} />;
+      return <RatesPage />;
     case "freight":
-      return <FreightPage tweaks={tweaks} />;
+      return <FreightPage />;
     case "reports":
-      return <ReportsPage tweaks={tweaks} />;
+      return <ReportsPage />;
     case "import":
-      return <SAPImportPage tweaks={tweaks} />;
+      return <SAPImportPage />;
     default:
-      return <OverviewPage tweaks={tweaks} />;
+      return <OverviewPage />;
   }
 }
 
 function AppInner() {
-  const [tweaks, setTweaksState] = useState(TWEAK_DEFAULTS);
-  const [tweaksOpen, setTweaksOpen] = useState(false);
-
-  const setTweak = (key, value) => {
-    setTweaksState(prev => ({ ...prev, [key]: value }));
-  };
-
-  // Apply theme whenever tweaks change
-  useEffect(() => {
-    applyTheme(tweaks);
-  }, [tweaks]);
-
   // Apply initial theme on mount
   useEffect(() => {
-    applyTheme(TWEAK_DEFAULTS);
+    applyTheme({ accent: "indigo", chartStyle: "area", dark: false, density: "comfortable" });
   }, []);
 
   return (
-    <>
-      <AppShell onTweaksOpen={() => setTweaksOpen(o => !o)}>
-        <PageRouter tweaks={tweaks} />
-      </AppShell>
-
-      <TweaksPanel
-        open={tweaksOpen}
-        onClose={() => setTweaksOpen(false)}
-        tweaks={tweaks}
-        setTweak={setTweak}
-      />
-    </>
+    <AppShell>
+      <PageRouter />
+    </AppShell>
   );
 }
 
 export default function App() {
   return (
     <ImportDataProvider>
-      <RouteProvider initialRoute={{ name: "overview" }}>
-        <AppInner />
-      </RouteProvider>
+      <FreightZonesProvider>
+        <RouteProvider initialRoute={{ name: "overview" }}>
+          <AppInner />
+        </RouteProvider>
+      </FreightZonesProvider>
     </ImportDataProvider>
   );
 }

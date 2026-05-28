@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useSuppliers, useMarketData, fmt } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
-import { SortableHeader, SupplierRow, btnPrimary } from '../components/ui';
+import { SortableHeader, btnPrimary, Sparkline, mono } from '../components/ui';
+import { stateColor } from '../theme';
 
 const COLS = "26px 2.1fr 0.6fr 0.6fr 0.9fr 0.9fr 0.8fr 0.9fr 1.2fr 0.8fr";
 
@@ -18,8 +19,89 @@ const COL_DEFS = [
   { l: "Last pickup", w: "0.8fr", k: "days_since", num: true },
 ];
 
-const STATES = ["NSW","VIC","QLD","WA","SA","TAS","NT","ACT"];
+const AU_STATES = ["NSW","VIC","QLD","WA","SA","TAS","NT","ACT"];
 const ZONES  = ["Z1","Z2","Z3","Z4","Z5"];
+
+function InlineSupplierRow({ s, onClick, cols, checked, onCheck, effectiveZone, effectiveState }) {
+  const zone = effectiveZone || s.zone;
+  const state = effectiveState || s.state;
+  const sinceColor = s.days_since > 45 ? "var(--down)" : s.days_since > 20 ? "var(--warn)" : "var(--up)";
+  const sc = stateColor(state);
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: cols,
+        padding: "11px 16px",
+        alignItems: "center",
+        fontSize: 13,
+        borderBottom: "1px solid var(--line)",
+        cursor: "pointer",
+        background: checked ? "var(--accent-soft)" : "transparent",
+      }}
+      onMouseEnter={e => { if (!checked) e.currentTarget.style.background = "var(--panel-2)"; }}
+      onMouseLeave={e => { if (!checked) e.currentTarget.style.background = "transparent"; }}
+    >
+      {/* Checkbox cell */}
+      <span onClick={e => { e.stopPropagation(); onCheck(); }} style={{ display: "grid", placeItems: "center" }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onCheck}
+          onClick={e => e.stopPropagation()}
+          style={{ cursor: "pointer", width: 14, height: 14, accentColor: "var(--accent)" }}
+        />
+      </span>
+      {/* Rest of row — navigate on click */}
+      <span style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }} onClick={onClick}>
+        <span style={{
+          width: 22, height: 22, borderRadius: 5,
+          background: sc, color: "#fff",
+          fontSize: 10, fontWeight: 600,
+          display: "grid", placeItems: "center",
+          fontFamily: mono,
+          flexShrink: 0,
+        }}>
+          {state.slice(0, 2)}
+        </span>
+        {s.name}
+        {s.isNew && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: 0.4,
+            padding: "1px 5px", borderRadius: 4,
+            background: "rgba(14,143,94,0.12)", color: "#0E8F5E",
+            border: "1px solid rgba(14,143,94,0.2)",
+          }}>NEW</span>
+        )}
+      </span>
+      <span style={{ color: "var(--muted)", fontFamily: mono, fontSize: 12 }} onClick={onClick}>{s.site_count}</span>
+      <span onClick={onClick}>
+        <span style={{
+          padding: "2px 7px", borderRadius: 4,
+          background: "var(--accent-soft)", color: "var(--accent)",
+          fontSize: 11, fontWeight: 600, fontFamily: mono,
+        }}>
+          {zone}
+        </span>
+      </span>
+      <span style={{ textAlign: "right", fontFamily: mono, fontWeight: 600 }} onClick={onClick}>{s.pct_lme}%</span>
+      <span style={{ textAlign: "right", fontFamily: mono }} onClick={onClick}>{fmt.aud(s.price_aud_t, 0)}</span>
+      <span style={{ textAlign: "right", fontFamily: mono, color: "var(--muted)" }} onClick={onClick}>{fmt.aud(s.freight_aud_t, 0)}</span>
+      <span style={{ textAlign: "right", fontFamily: mono, fontWeight: 600 }} onClick={onClick}>{fmt.aud(s.landed_aud_t, 0)}</span>
+      <span style={{ display: "flex", justifyContent: "flex-end" }} onClick={onClick}>
+        <Sparkline
+          data={(s.price_series || s.volume_12m || []).slice(-30)}
+          width={120} height={26}
+          stroke="var(--chart-line)"
+          fill="var(--chart-fill)"
+        />
+      </span>
+      <span style={{ textAlign: "right", fontFamily: mono, fontSize: 12, color: sinceColor }} onClick={onClick}>
+        {s.days_since != null ? s.days_since + "d" : "—"}
+      </span>
+    </div>
+  );
+}
 
 export default function SuppliersPage() {
   const { suppliers } = useSuppliers();
@@ -32,6 +114,14 @@ export default function SuppliersPage() {
   const [filterZone, setFilterZone] = useState("all");
   const [search, setSearch] = useState("");
 
+  // Bulk select state
+  const [selected, setSelected] = useState(new Set());
+  const [overrides, setOverrides] = useState({});
+
+  // Bulk action dropdowns
+  const [bulkZone, setBulkZone] = useState("");
+  const [bulkState, setBulkState] = useState("");
+
   const handleSort = (k) => {
     if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(k); setSortDir("desc"); }
@@ -39,8 +129,8 @@ export default function SuppliersPage() {
 
   const sorted = useMemo(() => {
     let list = [...suppliers];
-    if (filterState !== "all") list = list.filter(s => s.state === filterState);
-    if (filterZone !== "all") list = list.filter(s => s.zone === filterZone);
+    if (filterState !== "all") list = list.filter(s => (overrides[s.id]?.state || s.state) === filterState);
+    if (filterZone !== "all") list = list.filter(s => (overrides[s.id]?.zone || s.zone) === filterZone);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(s => s.name.toLowerCase().includes(q));
@@ -51,11 +141,63 @@ export default function SuppliersPage() {
       return sortDir === "asc" ? av - bv : bv - av;
     });
     return list;
-  }, [suppliers, sortKey, sortDir, filterState, filterZone, search]);
+  }, [suppliers, sortKey, sortDir, filterState, filterZone, search, overrides]);
+
+  const allChecked = sorted.length > 0 && sorted.every(s => selected.has(s.id));
+  const someChecked = sorted.some(s => selected.has(s.id));
+
+  const toggleAll = () => {
+    if (allChecked) {
+      setSelected(prev => {
+        const next = new Set(prev);
+        sorted.forEach(s => next.delete(s.id));
+        return next;
+      });
+    } else {
+      setSelected(prev => {
+        const next = new Set(prev);
+        sorted.forEach(s => next.add(s.id));
+        return next;
+      });
+    }
+  };
+
+  const toggleOne = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const applyBulkZone = (zone) => {
+    setOverrides(prev => {
+      const next = { ...prev };
+      selected.forEach(id => { next[id] = { ...(next[id] || {}), zone }; });
+      return next;
+    });
+    setBulkZone("");
+  };
+
+  const applyBulkState = (state) => {
+    setOverrides(prev => {
+      const next = { ...prev };
+      selected.forEach(id => { next[id] = { ...(next[id] || {}), state }; });
+      return next;
+    });
+    setBulkState("");
+  };
 
   const totalMonthly = sorted.reduce((a, s) => a + s.avg_monthly_t, 0);
   const avgLme = sorted.length ? (sorted.reduce((a, s) => a + s.pct_lme, 0) / sorted.length).toFixed(1) : "—";
   const avgLanded = sorted.length ? (sorted.reduce((a, s) => a + s.landed_aud_t, 0) / sorted.length).toFixed(0) : "—";
+
+  // Modify COL_DEFS to add checkbox in header
+  const colDefsWithCheckbox = [
+    { l: "", w: "26px" },
+    ...COL_DEFS.slice(1),
+  ];
 
   return (
     <div style={{ padding: 20 }}>
@@ -133,7 +275,7 @@ export default function SuppliersPage() {
 
         {/* State filter */}
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {["all", ...STATES].map(s => (
+          {["all", ...AU_STATES].map(s => (
             <button
               key={s}
               onClick={() => setFilterState(s)}
@@ -186,20 +328,64 @@ export default function SuppliersPage() {
         border: "1px solid var(--line)",
         borderRadius: 12,
         overflow: "hidden",
+        position: "relative",
       }}>
-        <SortableHeader
-          cols={COL_DEFS}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={handleSort}
-        />
+        {/* Custom header with checkbox */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: COLS,
+          padding: "10px 16px",
+          fontSize: 10,
+          color: "var(--muted)",
+          fontWeight: 600,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--panel-2)",
+          alignItems: "center",
+        }}>
+          <span style={{ display: "grid", placeItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={allChecked}
+              ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+              onChange={toggleAll}
+              style={{ cursor: "pointer", width: 14, height: 14, accentColor: "var(--accent)" }}
+            />
+          </span>
+          {COL_DEFS.slice(1).map((c, i) => {
+            const can = !!c.k;
+            const active = c.k === sortKey;
+            return (
+              <span key={i} style={{
+                textAlign: c.num ? "right" : "left",
+                cursor: can ? "pointer" : "default",
+                color: active ? "var(--text)" : "var(--muted)",
+                paddingRight: 6,
+                userSelect: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                justifyContent: c.num ? "flex-end" : "flex-start",
+              }} onClick={() => can && handleSort(c.k)}>
+                {c.l}
+                {active && <span style={{ fontSize: 9 }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
+              </span>
+            );
+          })}
+        </div>
+
         <div style={{ maxHeight: "calc(100vh - 360px)", overflow: "auto" }}>
           {sorted.map(s => (
-            <SupplierRow
+            <InlineSupplierRow
               key={s.id}
               s={s}
               cols={COLS}
               onClick={() => setRoute({ name: "supplier", id: s.id })}
+              checked={selected.has(s.id)}
+              onCheck={() => toggleOne(s.id)}
+              effectiveZone={overrides[s.id]?.zone}
+              effectiveState={overrides[s.id]?.state}
             />
           ))}
           {sorted.length === 0 && (
@@ -209,6 +395,92 @@ export default function SuppliersPage() {
           )}
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div style={{
+          position: "fixed",
+          bottom: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "var(--panel)",
+          border: "1px solid var(--line)",
+          borderRadius: 12,
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+          zIndex: 100,
+          fontSize: 13,
+          whiteSpace: "nowrap",
+        }}>
+          <span style={{ fontWeight: 600, color: "var(--accent)" }}>
+            {selected.size} supplier{selected.size !== 1 ? "s" : ""} selected
+          </span>
+          <span style={{ width: 1, height: 20, background: "var(--line-2)" }} />
+
+          {/* Change Zone */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>Zone:</span>
+            <select
+              value={bulkZone}
+              onChange={e => { if (e.target.value) applyBulkZone(e.target.value); }}
+              style={{
+                padding: "4px 8px",
+                fontSize: 12,
+                border: "1px solid var(--line-2)",
+                borderRadius: 6,
+                background: "var(--panel-2)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              <option value="">Change Zone ▾</option>
+              {ZONES.map(z => <option key={z} value={z}>{z}</option>)}
+            </select>
+          </div>
+
+          {/* Change State */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>State:</span>
+            <select
+              value={bulkState}
+              onChange={e => { if (e.target.value) applyBulkState(e.target.value); }}
+              style={{
+                padding: "4px 8px",
+                fontSize: 12,
+                border: "1px solid var(--line-2)",
+                borderRadius: 6,
+                background: "var(--panel-2)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              <option value="">Change State ▾</option>
+              {AU_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <span style={{ width: 1, height: 20, background: "var(--line-2)" }} />
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 12,
+              color: "var(--muted)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              padding: "4px 8px",
+            }}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
     </div>
   );
 }

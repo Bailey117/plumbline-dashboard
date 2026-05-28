@@ -14,6 +14,7 @@ import {
   STATES,
 } from './mockData';
 import { ImportDataContext } from '../context/ImportDataContext';
+import { useFreightZones as useFreightZonesCtx } from '../context/FreightZonesContext';
 
 // Match SAP supplier name to dashboard supplier name (case-insensitive substring)
 function matchSupplier(dashboardSupplier, sapName) {
@@ -83,7 +84,29 @@ export function useSuppliers() {
   }
 
   const merged = mockSuppliers.map(s => mergeSupplierData(s, importState.supplierStats));
-  return { suppliers: merged, loading: false };
+
+  // Append synthetic suppliers created from unmatched SAP records
+  const newSuppliers = (importState.newSuppliers || []).map(stat => ({
+    id: "sap_" + stat.code,
+    name: stat.name,
+    code: stat.code,
+    state: "NSW",
+    zone: "Z1",
+    pct_lme: 75,
+    avg_monthly_t: stat.avgMonthly || 0,
+    ytd_tonnes: stat.ytdTonnes || 0,
+    ytd_spend_aud: stat.ytdSpend || 0,
+    days_since: stat.daysSince,
+    price_aud_t: stat.latestNetPrice || 0,
+    freight_aud_t: 52,
+    landed_aud_t: (stat.latestNetPrice || 0) + 52,
+    volume_12m: stat.volume12m || new Array(12).fill(0),
+    price_series: stat.volume12m || new Array(12).fill(0),
+    site_count: 1,
+    isNew: true,
+  }));
+
+  return { suppliers: [...merged, ...newSuppliers], loading: false };
 }
 
 export function useSupplier(id) {
@@ -110,7 +133,8 @@ export function useAlerts() {
 
 // ── Freight zones ─────────────────────────────────────────────────────────────
 export function useFreightZones() {
-  return { freight_zones: mockFreightZones, loading: false };
+  const ctx = useFreightZonesCtx();
+  return { freight_zones: ctx ? ctx.zones : mockFreightZones, loading: false };
 }
 
 // ── Volume & spend daily series ───────────────────────────────────────────────

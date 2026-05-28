@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useMarketData, useFreightZones, freightAt, fmt } from '../api/hooks';
+import { useMarketData, fmt } from '../api/hooks';
+import { useFreightZones } from '../context/FreightZonesContext';
 import FreightCurve from '../components/charts/FreightCurve';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
@@ -7,12 +8,55 @@ const ZONE_COLORS = ["#5B5BD6","#0E8F5E","#A77D24","#D14545","#7C3AED"];
 
 export default function FreightPage() {
   const { market } = useMarketData();
-  const { freight_zones } = useFreightZones();
+  const { zones: freight_zones, updateZone, resetZones } = useFreightZones();
   const [diesel, setDiesel] = useState(market.diesel_gate_aud);
   const [lme, setLme] = useState(market.lme_pb_aud);
   const [pct, setPct] = useState(76);
 
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editValues, setEditValues] = useState({});
+
   const leadPrice = lme * pct / 100;
+
+  // Local freight calculation using current zones
+  const freightAtLocal = (zoneCode, dieselPrice) => {
+    const z = freight_zones.find(x => x.code === zoneCode);
+    if (!z) return 0;
+    const factor = 1 + ((dieselPrice - 1.80) / 1.80) * 0.42;
+    return +(z.base * factor).toFixed(2);
+  };
+
+  const startEdit = () => {
+    const initial = {};
+    freight_zones.forEach(z => {
+      initial[z.code] = { base: z.base, name: z.name };
+    });
+    setEditValues(initial);
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setEditValues({});
+    setEditMode(false);
+  };
+
+  const saveEdits = () => {
+    Object.entries(editValues).forEach(([code, vals]) => {
+      updateZone(code, {
+        base: Number(vals.base),
+        name: vals.name,
+      });
+    });
+    setEditMode(false);
+    setEditValues({});
+  };
+
+  const handleReset = () => {
+    resetZones();
+    setEditMode(false);
+    setEditValues({});
+  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -78,7 +122,7 @@ export default function FreightPage() {
                     fontSize: 11, fontFamily: mono, fontWeight: 600,
                     color: ZONE_COLORS[i],
                   }}>
-                    ${Math.round(freightAt(z.code, diesel))}
+                    ${Math.round(freightAtLocal(z.code, diesel))}
                   </span>
                 </div>
               ))}
@@ -96,12 +140,66 @@ export default function FreightPage() {
               padding: "12px 16px",
               borderBottom: "1px solid var(--line)",
               fontSize: 13, fontWeight: 600,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}>
-              Zone freight at current diesel
+              <span>Zone freight at current diesel</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                {editMode ? (
+                  <>
+                    <button
+                      onClick={saveEdits}
+                      style={{
+                        padding: "5px 12px", fontSize: 12, fontWeight: 600,
+                        border: "1px solid var(--text)", background: "var(--text)",
+                        color: "var(--panel)", borderRadius: 6, cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Save changes
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      style={{
+                        padding: "5px 12px", fontSize: 12,
+                        border: "1px solid var(--line-2)", background: "transparent",
+                        color: "var(--muted)", borderRadius: 6, cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      style={{
+                        padding: "5px 12px", fontSize: 12,
+                        border: "1px solid rgba(209,69,69,0.3)", background: "transparent",
+                        color: "var(--down)", borderRadius: 6, cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Reset to defaults
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={startEdit}
+                    style={{
+                      padding: "5px 12px", fontSize: 12,
+                      border: "1px solid var(--line-2)", background: "transparent",
+                      color: "var(--muted)", borderRadius: 6, cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Edit zones
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{
               display: "grid",
-              gridTemplateColumns: "0.5fr 2fr 1fr 1fr 1fr",
+              gridTemplateColumns: editMode ? "0.5fr 2fr 1fr 1fr 1fr" : "0.5fr 2fr 1fr 1fr 1fr",
               padding: "8px 16px",
               fontSize: 10, color: "var(--muted)", fontWeight: 600,
               letterSpacing: 0.3, textTransform: "uppercase",
@@ -115,9 +213,10 @@ export default function FreightPage() {
               <span style={{ textAlign: "right" }}>States</span>
             </div>
             {freight_zones.map((z, i) => {
-              const eff = freightAt(z.code, diesel);
-              const base = freightAt(z.code, 1.80);
+              const eff = freightAtLocal(z.code, diesel);
+              const base = freightAtLocal(z.code, 1.80);
               const delta = eff - base;
+              const ev = editValues[z.code] || { base: z.base, name: z.name };
               return (
                 <div
                   key={z.code}
@@ -128,6 +227,7 @@ export default function FreightPage() {
                     alignItems: "center",
                     fontSize: 13,
                     borderBottom: "1px solid var(--line)",
+                    background: editMode ? "var(--panel-2)" : "transparent",
                   }}
                 >
                   <span style={{
@@ -139,10 +239,54 @@ export default function FreightPage() {
                   }}>
                     {z.code}
                   </span>
-                  <span style={{ fontSize: 12 }}>{z.name}</span>
-                  <span style={{ textAlign: "right", fontFamily: mono, color: "var(--muted)" }}>
-                    ${z.base}
-                  </span>
+
+                  {/* Name cell */}
+                  {editMode ? (
+                    <input
+                      value={ev.name}
+                      onChange={e => setEditValues(prev => ({
+                        ...prev,
+                        [z.code]: { ...ev, name: e.target.value },
+                      }))}
+                      style={{
+                        fontSize: 12, padding: "4px 8px",
+                        border: "1px solid var(--line-2)",
+                        borderRadius: 5, background: "var(--panel)",
+                        color: "var(--text)", fontFamily: "inherit",
+                        width: "90%",
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 12 }}>{z.name}</span>
+                  )}
+
+                  {/* Base rate cell */}
+                  {editMode ? (
+                    <div style={{ textAlign: "right" }}>
+                      <input
+                        type="number"
+                        value={ev.base}
+                        min={1}
+                        max={999}
+                        onChange={e => setEditValues(prev => ({
+                          ...prev,
+                          [z.code]: { ...ev, base: e.target.value },
+                        }))}
+                        style={{
+                          fontSize: 12, padding: "4px 8px",
+                          border: "1px solid var(--line-2)",
+                          borderRadius: 5, background: "var(--panel)",
+                          color: "var(--text)", fontFamily: mono,
+                          width: 70, textAlign: "right",
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span style={{ textAlign: "right", fontFamily: mono, color: "var(--muted)" }}>
+                      ${z.base}
+                    </span>
+                  )}
+
                   <div style={{ textAlign: "right", fontFamily: mono }}>
                     <span style={{ fontWeight: 600 }}>${Math.round(eff)}</span>
                     {delta !== 0 && (
@@ -238,7 +382,7 @@ export default function FreightPage() {
                 Landed cost by zone
               </div>
               {freight_zones.map((z, i) => {
-                const freight = freightAt(z.code, diesel);
+                const freight = freightAtLocal(z.code, diesel);
                 const landed = leadPrice + freight;
                 return (
                   <div key={z.code} style={{

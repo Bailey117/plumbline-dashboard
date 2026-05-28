@@ -44,16 +44,7 @@ function BellIcon() {
   );
 }
 
-function GearIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.5" />
-      <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
-    </svg>
-  );
-}
-
-export default function Header({ onSearchOpen, onAlertsOpen, onTweaksOpen, alertCount }) {
+export default function Header({ onSearchOpen, onAlertsOpen, alertCount }) {
   const { route, setRoute } = useRoute();
 
   return (
@@ -219,23 +210,6 @@ export default function Header({ onSearchOpen, onAlertsOpen, onTweaksOpen, alert
             border: "1.5px solid var(--panel)",
           }} />
         )}
-      </button>
-
-      {/* Tweaks / settings */}
-      <button
-        onClick={onTweaksOpen}
-        aria-label="Open settings"
-        style={{
-          width: 32, height: 32,
-          borderRadius: 8,
-          border: "1px solid var(--line-2)",
-          background: "transparent",
-          color: "var(--muted)",
-          display: "grid", placeItems: "center",
-          cursor: "pointer",
-        }}
-      >
-        <GearIcon />
       </button>
 
       {/* Avatar */}

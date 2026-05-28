@@ -118,7 +118,25 @@ export async function parseSAPFile(file) {
   let dataRows = rows;
   const firstCell = String(rows[0][0] || '').trim();
   if (isNaN(Number(firstCell)) && firstCell !== '') {
-    dataRows = rows.slice(1);
+    dataRows = [...rows.slice(1)];
+  } else {
+    dataRows = [...rows];
+  }
+
+  // Filter out summary/total rows at the bottom of the SAP export
+  // Find first row where col 0 (purDoc) contains "Total" (case-insensitive)
+  // or where supplier code is empty but purDoc has text (aggregate row)
+  const summaryIdx = dataRows.findIndex(row => {
+    const purDoc = String(row[0] || '').trim();
+    const supplierCode = String(row[6] || '').trim();
+    if (!purDoc) return false;
+    if (/total/i.test(purDoc)) return true;
+    // Aggregate row: supplier code empty but purDoc has non-numeric text
+    if (!supplierCode && purDoc && isNaN(Number(purDoc))) return true;
+    return false;
+  });
+  if (summaryIdx !== -1) {
+    dataRows = dataRows.slice(0, summaryIdx);
   }
 
   const totalRows = dataRows.length;

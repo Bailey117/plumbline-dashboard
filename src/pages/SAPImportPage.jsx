@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { parseSAPFile } from '../utils/sapParser';
 import { useImportData } from '../context/ImportDataContext';
 import { useSuppliers } from '../api/hooks';
@@ -214,6 +214,7 @@ function StepUpload({ onFileParsed }) {
 function StepReview({ parseResult, onBack, onApply }) {
   const { suppliers } = useSuppliers();
   const { supplierStats, totalRows, validRows, dateRange, fileInfo } = parseResult;
+  const [createNew, setCreateNew] = useState({});
 
   const rows = supplierStats.map(stat => ({
     stat,
@@ -222,8 +223,11 @@ function StepReview({ parseResult, onBack, onApply }) {
 
   const matchedCount = rows.filter(r => r.match).length;
   const unmatchedCount = rows.filter(r => !r.match).length;
+  const createCount = Object.values(createNew).filter(Boolean).length;
 
   const totalTonnes = supplierStats.reduce((a, s) => a + s.ytdTonnes, 0);
+
+  const canApply = matchedCount > 0 || createCount > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -286,7 +290,13 @@ function StepReview({ parseResult, onBack, onApply }) {
         {/* Table rows */}
         <div style={{ maxHeight: 460, overflowY: 'auto' }}>
           {rows.map(({ stat, match }) => (
-            <ReviewRow key={stat.code} stat={stat} match={match} />
+            <ReviewRow
+              key={stat.code}
+              stat={stat}
+              match={match}
+              createNew={createNew}
+              setCreateNew={setCreateNew}
+            />
           ))}
           {rows.length === 0 && (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
@@ -304,10 +314,17 @@ function StepReview({ parseResult, onBack, onApply }) {
           color: 'var(--muted)',
           display: 'flex',
           gap: 16,
+          alignItems: 'center',
         }}>
           <span style={{ color: 'var(--up)', fontWeight: 600 }}>{matchedCount} matched</span>
           <span>·</span>
           <span>{unmatchedCount} unmatched</span>
+          {createCount > 0 && (
+            <>
+              <span>·</span>
+              <span style={{ color: '#0E8F5E', fontWeight: 600 }}>{createCount} will be created</span>
+            </>
+          )}
           <span>·</span>
           <span>{supplierStats.length} total</span>
         </div>
@@ -319,11 +336,11 @@ function StepReview({ parseResult, onBack, onApply }) {
         <button
           style={{
             ...btnPrimary,
-            opacity: matchedCount === 0 ? 0.4 : 1,
-            cursor: matchedCount === 0 ? 'not-allowed' : 'pointer',
+            opacity: canApply ? 1 : 0.4,
+            cursor: canApply ? 'pointer' : 'not-allowed',
           }}
-          onClick={matchedCount > 0 ? onApply : undefined}
-          disabled={matchedCount === 0}
+          onClick={canApply ? () => onApply(createNew) : undefined}
+          disabled={!canApply}
         >
           Apply Import →
         </button>
@@ -347,8 +364,9 @@ function StatChip({ label, value }) {
   );
 }
 
-function ReviewRow({ stat, match }) {
+function ReviewRow({ stat, match, createNew, setCreateNew }) {
   const dColor = daysSinceColor(stat.daysSince);
+  const willCreate = createNew[stat.code];
   return (
     <div style={{
       display: 'grid',
@@ -389,8 +407,40 @@ function ReviewRow({ stat, match }) {
           }}>
             {match.name}
           </span>
+        ) : willCreate ? (
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: 5,
+            background: 'rgba(14,143,94,0.12)',
+            color: '#0E8F5E',
+            fontSize: 11,
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            cursor: 'pointer',
+            border: '1px solid rgba(14,143,94,0.25)',
+          }}
+            onClick={e => { e.stopPropagation(); setCreateNew(prev => ({ ...prev, [stat.code]: false })); }}
+          >
+            ✓ Will create
+          </span>
         ) : (
-          <span style={{ fontSize: 11, color: 'var(--dim)' }}>— unmatched</span>
+          <button
+            onClick={e => { e.stopPropagation(); setCreateNew(prev => ({ ...prev, [stat.code]: true })); }}
+            style={{
+              background: 'transparent',
+              border: '1px dashed var(--line-2)',
+              borderRadius: 5,
+              padding: '2px 7px',
+              fontSize: 11,
+              color: 'var(--muted)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            ＋ Create supplier
+          </button>
         )}
       </span>
     </div>
@@ -518,9 +568,10 @@ export default function SAPImportPage() {
     setStep(2);
   };
 
-  const handleApply = () => {
+  const handleApply = (createNew = {}) => {
     if (!parseResult) return;
-    applyImport(parseResult.supplierStats, parseResult.fileInfo);
+    const newSupplierCodes = parseResult.supplierStats.filter(s => createNew[s.code]);
+    applyImport(parseResult.supplierStats, parseResult.fileInfo, newSupplierCodes);
     setStep(3);
   };
 
@@ -576,7 +627,7 @@ export default function SAPImportPage() {
           <StepReview
             parseResult={parseResult}
             onBack={handleBack}
-            onApply={handleApply}
+            onApply={(createNew) => handleApply(createNew)}
           />
         )}
         {step === 3 && (
