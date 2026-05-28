@@ -3,6 +3,7 @@ import { RouteProvider, useRoute } from './context/RouteContext';
 import AppShell from './components/layout/AppShell';
 import TweaksPanel from './components/tweaks/TweaksPanel';
 import { applyTheme } from './theme';
+import { ImportDataProvider } from './context/ImportDataContext';
 
 // Pages
 import OverviewPage from './pages/OverviewPage';
@@ -12,6 +13,7 @@ import SupplierDetailPage from './pages/SupplierDetailPage';
 import RatesPage from './pages/RatesPage';
 import FreightPage from './pages/FreightPage';
 import ReportsPage from './pages/ReportsPage';
+import SAPImportPage from './pages/SAPImportPage';
 
 const TWEAK_DEFAULTS = {
   accent: "indigo",
@@ -39,6 +41,8 @@ function PageRouter({ tweaks }) {
       return <FreightPage tweaks={tweaks} />;
     case "reports":
       return <ReportsPage tweaks={tweaks} />;
+    case "import":
+      return <SAPImportPage tweaks={tweaks} />;
     default:
       return <OverviewPage tweaks={tweaks} />;
   }
@@ -80,8 +84,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <RouteProvider initialRoute={{ name: "overview" }}>
-      <AppInner />
-    </RouteProvider>
+    <ImportDataProvider>
+      <RouteProvider initialRoute={{ name: "overview" }}>
+        <AppInner />
+      </RouteProvider>
+    </ImportDataProvider>
   );
 }

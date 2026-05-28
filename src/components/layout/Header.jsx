@@ -11,6 +11,7 @@ const NAV_TABS = [
   { label: "Rates",     name: "rates" },
   { label: "Freight",   name: "freight" },
   { label: "Reports",   name: "reports" },
+  { label: "Import",    name: "import",  badge: "SAP" },
 ];
 
 function SearchIcon() {
@@ -111,9 +112,27 @@ export default function Header({ onSearchOpen, onAlertsOpen, onTweaksOpen, alert
                 borderRadius: 6,
                 position: "relative",
                 fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
               }}
             >
               {tab.label}
+              {tab.badge && (
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                  color: "var(--muted)",
+                  background: "var(--panel-2)",
+                  border: "1px solid var(--line-2)",
+                  borderRadius: 4,
+                  padding: "1px 4px",
+                  lineHeight: 1.4,
+                }}>
+                  {tab.badge}
+                </span>
+              )}
               {active && (
                 <span style={{
                   position: "absolute",
