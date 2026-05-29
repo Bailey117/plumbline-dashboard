@@ -4,6 +4,8 @@ import AppShell from './components/layout/AppShell';
 import { applyTheme } from './theme';
 import { ImportDataProvider } from './context/ImportDataContext';
 import { FreightZonesProvider } from './context/FreightZonesContext';
+import { DeletedSuppliersProvider } from './context/DeletedSuppliersContext';
+import { SupplierDataProvider } from './context/SupplierDataContext';
 
 // Pages
 import OverviewPage from './pages/OverviewPage';
@@ -57,9 +59,13 @@ export default function App() {
   return (
     <ImportDataProvider>
       <FreightZonesProvider>
-        <RouteProvider initialRoute={{ name: "overview" }}>
-          <AppInner />
-        </RouteProvider>
+        <DeletedSuppliersProvider>
+          <SupplierDataProvider>
+            <RouteProvider initialRoute={{ name: "overview" }}>
+              <AppInner />
+            </RouteProvider>
+          </SupplierDataProvider>
+        </DeletedSuppliersProvider>
       </FreightZonesProvider>
     </ImportDataProvider>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { parseSAPFile } from '../utils/sapParser';
 import { useImportData } from '../context/ImportDataContext';
-import { useSuppliers } from '../api/hooks';
+import { useSuppliers, useDeletedSuppliers } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
 import { btnPrimary, btnGhost, mono } from '../components/ui';
 
@@ -213,12 +213,14 @@ function StepUpload({ onFileParsed }) {
 
 function StepReview({ parseResult, onBack, onApply }) {
   const { suppliers } = useSuppliers();
+  const { deletedIds } = useDeletedSuppliers();
   const { supplierStats, totalRows, validRows, dateRange, fileInfo } = parseResult;
   const [createNew, setCreateNew] = useState({});
 
+  const activeSuppliers = suppliers.filter(s => !deletedIds.has(s.id));
   const rows = supplierStats.map(stat => ({
     stat,
-    match: matchToDashboard(stat, suppliers),
+    match: matchToDashboard(stat, activeSuppliers),
   }));
 
   const matchedCount = rows.filter(r => r.match).length;

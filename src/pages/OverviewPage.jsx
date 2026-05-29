@@ -93,6 +93,16 @@ export default function OverviewPage({ tweaks }) {
   const { setRoute } = useRoute();
   const [range, setRange] = useState("90D");
   const [hoverState, setHoverState] = useState(null);
+  const [chartCurrency, setChartCurrency] = useState("AUD");
+
+  const handleAlertView = (a) => {
+    if (a.cat === 'pickups') setRoute({ name: 'suppliers' });
+    else if (a.cat === 'rates') setRoute({ name: 'rates' });
+    else if (a.cat === 'sap') setRoute({ name: 'import' });
+    else if (a.cat === 'market') setRoute({ name: 'overview' });
+    else if (a.cat === 'contracts') setRoute({ name: 'reports' });
+    else setRoute({ name: 'suppliers' });
+  };
 
   const lmeDelta = fmt.delta(market.lme_pb_aud, market.lme_pb_aud_prev, 0);
   const audDelta = fmt.delta(market.aud_usd, market.aud_usd_prev, 4);
@@ -181,12 +191,12 @@ export default function OverviewPage({ tweaks }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
-              {["USD","AUD"].map((u, i) => (
-                <button key={u} style={{
+              {["USD","AUD"].map((u) => (
+                <button key={u} onClick={() => setChartCurrency(u)} style={{
                   padding: "5px 10px", fontSize: 12,
                   border: "1px solid var(--line-2)",
-                  background: i === 1 ? "var(--text)" : "var(--panel)",
-                  color: i === 1 ? "var(--panel)" : "var(--muted)",
+                  background: chartCurrency === u ? "var(--text)" : "var(--panel)",
+                  color: chartCurrency === u ? "var(--panel)" : "var(--muted)",
                   borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
                 }}>
                   {u}
@@ -196,7 +206,7 @@ export default function OverviewPage({ tweaks }) {
           </div>
           <div style={{ flex: 1, minHeight: 200 }}>
             <LineChart
-              data={history.lme_pb_aud}
+              data={chartCurrency === "AUD" ? history.lme_pb_aud : history.lme_pb_usd}
               labels={history.days.map(d => d.slice(5))}
               width={820} height={240}
               mode={chartMode}
@@ -205,7 +215,7 @@ export default function OverviewPage({ tweaks }) {
               grid
               gridColor="rgba(0,0,0,0.05)"
               axisColor="var(--muted)"
-              valueFmt={v => "$" + Math.round(v).toLocaleString()}
+              valueFmt={chartCurrency === "AUD" ? v => "$" + Math.round(v).toLocaleString() : v => "US$" + Math.round(v).toLocaleString()}
             />
           </div>
         </div>
@@ -283,6 +293,7 @@ export default function OverviewPage({ tweaks }) {
                   key={s.code}
                   onMouseEnter={() => setHoverState(s.code)}
                   onMouseLeave={() => setHoverState(null)}
+                  onClick={() => setRoute({ name: 'states' })}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "44px 1fr auto auto",
@@ -338,7 +349,7 @@ export default function OverviewPage({ tweaks }) {
                 label={a.title}
                 detail={a.actor + " · " + a.t}
                 cta="View"
-                onClick={() => {}}
+                onClick={() => handleAlertView(a)}
                 compact
               />
             ))}

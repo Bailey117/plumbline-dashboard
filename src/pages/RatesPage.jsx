@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { useSuppliers, useMarketData, fmt } from '../api/hooks';
+import { useSuppliers, useMarketData, fmt, useSupplierData } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
 import { Sparkline } from '../components/ui';
 import { stateColor } from '../theme';
+import RateModal from '../components/RateModal';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 
@@ -10,8 +11,10 @@ export default function RatesPage() {
   const { suppliers } = useSuppliers();
   const { market } = useMarketData();
   const { setRoute } = useRoute();
+  const { updateSupplier } = useSupplierData();
   const [filter, setFilter] = useState("all");
   const [sortDir, setSortDir] = useState("desc");
+  const [bulkRateOpen, setBulkRateOpen] = useState(false);
 
   const dueSoon = suppliers.filter(s => s.rate_change_due);
 
@@ -54,7 +57,7 @@ export default function RatesPage() {
             border: "1px solid var(--text)",
             background: "var(--text)", color: "var(--panel)",
             borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
-          }}>
+          }} onClick={() => setBulkRateOpen(true)}>
             Bulk update rates
           </button>
         </div>
@@ -191,6 +194,15 @@ export default function RatesPage() {
           {sortDir === "desc" ? "Highest first ↓" : "Lowest first ↑"}
         </button>
       </div>
+
+      <RateModal
+        open={bulkRateOpen}
+        title="Bulk update rates"
+        supplierName={dueSoon.length + ' suppliers due for review'}
+        currentPct={+avgPct}
+        onSave={(pct) => { dueSoon.forEach(s => updateSupplier(s.id, { pct_lme: pct })); }}
+        onClose={() => setBulkRateOpen(false)}
+      />
 
       {/* Rate table */}
       <div style={{

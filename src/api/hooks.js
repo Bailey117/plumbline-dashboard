@@ -11,10 +11,13 @@ import {
   months as mockMonths,
   fmt,
   freightAt,
+  freightAt as staticFreightAt,
   STATES,
 } from './mockData';
 import { ImportDataContext } from '../context/ImportDataContext';
 import { useFreightZones as useFreightZonesCtx } from '../context/FreightZonesContext';
+import { useDeletedSuppliers as useDeletedSuppliersCtx } from '../context/DeletedSuppliersContext';
+import { useSupplierData as useSupplierDataCtx } from '../context/SupplierDataContext';
 
 // Match SAP supplier name to dashboard supplier name (case-insensitive substring)
 function matchSupplier(dashboardSupplier, sapName) {
@@ -60,6 +63,22 @@ function mergeSupplierData(supplier, sapStats) {
   return merged;
 }
 
+// Apply per-supplier overrides and recompute derived fields if needed
+function applyOverrides(s, overrides) {
+  const ov = overrides[s.id];
+  if (!ov) return s;
+  const merged = { ...s, ...ov };
+  // Recompute derived fields if pct_lme or zone changed
+  if (ov.pct_lme !== undefined || ov.zone !== undefined) {
+    const pct = merged.pct_lme;
+    const lme = mockMarket.lme_pb_aud;
+    merged.price_aud_t = +(lme * pct / 100).toFixed(2);
+    merged.freight_aud_t = staticFreightAt(merged.zone, mockMarket.diesel_gate_aud);
+    merged.landed_aud_t = +(merged.price_aud_t + merged.freight_aud_t).toFixed(2);
+  }
+  return merged;
+}
+
 function useImportState() {
   // Gracefully handle case where context isn't available
   try {
@@ -78,47 +97,77 @@ export function useMarketData() {
 // ── Suppliers ────────────────────────────────────────────────────────────────
 export function useSuppliers() {
   const importState = useImportState();
+  const { deletedIds } = useDeletedSuppliersCtx() || { deletedIds: new Set() };
+  const { customSuppliers, overrides } = useSupplierDataCtx() || { customSuppliers: [], overrides: {} };
 
-  if (!importState || !importState.supplierStats) {
-    return { suppliers: mockSuppliers, loading: false };
+  // Base: mock suppliers merged with SAP import data
+  let base = mockSuppliers;
+  if (importState?.supplierStats) {
+    base = mockSuppliers.map(s => mergeSupplierData(s, importState.supplierStats));
   }
 
-  const merged = mockSuppliers.map(s => mergeSupplierData(s, importState.supplierStats));
+  // Apply overrides
+  base = base.map(s => applyOverrides(s, overrides));
 
-  // Append synthetic suppliers created from unmatched SAP records
-  const newSuppliers = (importState.newSuppliers || []).map(stat => ({
-    id: "sap_" + stat.code,
-    name: stat.name,
-    code: stat.code,
-    state: "NSW",
-    zone: "Z1",
-    pct_lme: 75,
-    avg_monthly_t: stat.avgMonthly || 0,
-    ytd_tonnes: stat.ytdTonnes || 0,
-    ytd_spend_aud: stat.ytdSpend || 0,
-    days_since: stat.daysSince,
-    price_aud_t: stat.latestNetPrice || 0,
-    freight_aud_t: 52,
-    landed_aud_t: (stat.latestNetPrice || 0) + 52,
-    volume_12m: stat.volume12m || new Array(12).fill(0),
-    price_series: stat.volume12m || new Array(12).fill(0),
-    site_count: 1,
-    isNew: true,
-  }));
+  // Filter deleted
+  base = base.filter(s => !deletedIds.has(s.id));
 
-  return { suppliers: [...merged, ...newSuppliers], loading: false };
+  // Append SAP-created new suppliers (filtered by deleted)
+  const newSAPSuppliers = (importState?.newSuppliers || [])
+    .filter(stat => !deletedIds.has('sap_' + stat.code))
+    .map(stat => ({
+      id: 'sap_' + stat.code,
+      name: stat.name,
+      code: stat.code,
+      state: 'NSW',
+      zone: 'Z1',
+      pct_lme: 75,
+      avg_monthly_t: stat.avgMonthly || 0,
+      ytd_tonnes: stat.ytdTonnes || 0,
+      ytd_spend_aud: stat.ytdSpend || 0,
+      days_since: stat.daysSince,
+      price_aud_t: stat.latestNetPrice || 0,
+      freight_aud_t: 52,
+      landed_aud_t: (stat.latestNetPrice || 0) + 52,
+      volume_12m: stat.volume12m || new Array(12).fill(0),
+      price_series: stat.volume12m || new Array(12).fill(0),
+      site_count: 1,
+      rate_history: [{ month: 'Now', pct: 75, set_by: 'SAP Import' }, { month: 'Now', pct: 75, set_by: 'SAP Import' }],
+      rate_change_due: false,
+      isNew: true,
+    }));
+
+  // Append custom suppliers (filtered by deleted)
+  const filteredCustom = customSuppliers
+    .filter(s => !deletedIds.has(s.id))
+    .map(s => applyOverrides(s, overrides));
+
+  return { suppliers: [...base, ...newSAPSuppliers, ...filteredCustom], loading: false };
 }
 
 export function useSupplier(id) {
   const importState = useImportState();
-  const baseSupplier = mockSuppliers.find(s => s.id === id) || mockSuppliers[0];
+  const { deletedIds } = useDeletedSuppliersCtx() || { deletedIds: new Set() };
+  const { customSuppliers, overrides } = useSupplierDataCtx() || { customSuppliers: [], overrides: {} };
 
-  if (!importState || !importState.supplierStats) {
-    return { supplier: baseSupplier, loading: false };
+  if (deletedIds.has(id)) {
+    const name = mockSuppliers.find(s => s.id === id)?.name || customSuppliers.find(s => s.id === id)?.name;
+    return { supplier: { id, name }, isDeleted: true, loading: false };
   }
 
-  const supplier = mergeSupplierData(baseSupplier, importState.supplierStats);
-  return { supplier, loading: false };
+  // Check custom suppliers
+  const customMatch = customSuppliers.find(s => s.id === id);
+  if (customMatch) {
+    return { supplier: applyOverrides(customMatch, overrides), isDeleted: false, loading: false };
+  }
+
+  const baseSupplier = mockSuppliers.find(s => s.id === id) || mockSuppliers[0];
+  let supplier = baseSupplier;
+  if (importState?.supplierStats) {
+    supplier = mergeSupplierData(baseSupplier, importState.supplierStats);
+  }
+  supplier = applyOverrides(supplier, overrides);
+  return { supplier, isDeleted: false, loading: false };
 }
 
 // ── States ───────────────────────────────────────────────────────────────────
@@ -144,3 +193,7 @@ export function useVolumeData() {
 
 // Re-export static helpers so components can import everything from one place
 export { fmt, freightAt, STATES, mockMonths as months };
+
+// Re-export context hooks for convenience
+export const useDeletedSuppliers = useDeletedSuppliersCtx;
+export const useSupplierData = useSupplierDataCtx;

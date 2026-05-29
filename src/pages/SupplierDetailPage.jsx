@@ -1,18 +1,42 @@
 import React, { useState } from 'react';
-import { useSupplier, useMarketData, fmt } from '../api/hooks';
+import { useSupplier, useMarketData, fmt, useDeletedSuppliers, useSupplierData } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
 import LineChart from '../components/charts/LineChart';
 import BarChart from '../components/charts/BarChart';
 import { CardHead, Field, SiteRow, btnGhost, btnPrimary } from '../components/ui';
 import { stateColor } from '../theme';
+import ConfirmDialog from '../components/ConfirmDialog';
+import SupplierFormModal from '../components/SupplierFormModal';
+import RateModal from '../components/RateModal';
+import LogPickupModal from '../components/LogPickupModal';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 
 export default function SupplierDetailPage({ id }) {
-  const { supplier: s } = useSupplier(id);
+  const { supplier: s, isDeleted } = useSupplier(id);
   const { market, history } = useMarketData();
   const { setRoute } = useRoute();
+  const { deleteSuppliers, restoreSupplier } = useDeletedSuppliers();
+  const { updateSupplier, logPickup } = useSupplierData();
   const [tab, setTab] = useState("overview");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
+
+  if (isDeleted) return (
+    <div style={{ padding: 40, textAlign: "center" }}>
+      <button
+        onClick={() => setRoute({ name: "suppliers" })}
+        style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 20 }}
+      >
+        ← Back to suppliers
+      </button>
+      <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: "var(--down)" }}>Supplier deleted</div>
+      <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>{s?.name} has been removed from the dashboard.</div>
+      <button style={btnGhost} onClick={() => restoreSupplier(id)}>Restore supplier</button>
+    </div>
+  );
 
   if (!s) return (
     <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
@@ -81,8 +105,14 @@ export default function SupplierDetailPage({ id }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnGhost}>Edit</button>
-            <button style={btnPrimary}>Log pickup</button>
+            <button style={btnGhost} onClick={() => setEditOpen(true)}>Edit</button>
+            <button style={btnPrimary} onClick={() => setPickupOpen(true)}>Log pickup</button>
+            <button
+              style={{ ...btnGhost, color: "var(--down)", borderColor: "var(--down)" }}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete
+            </button>
           </div>
         </div>
       </div>
@@ -286,7 +316,7 @@ export default function SupplierDetailPage({ id }) {
             title="Rate negotiation history"
             sub="Monthly % of LME"
             action={
-              <button style={btnPrimary}>Set new rate</button>
+              <button style={btnPrimary} onClick={() => setRateOpen(true)}>Set new rate</button>
             }
           />
           <div style={{ padding: 16 }}>
@@ -387,7 +417,7 @@ export default function SupplierDetailPage({ id }) {
               ["Avg monthly", s.avg_monthly_t + " t"],
               ["YTD volume", s.ytd_tonnes + " t"],
               ["YTD spend", fmt.aud(s.ytd_spend_aud, 0)],
-              ["Last pickup", s.days_since + " days ago"],
+              ["Last pickup", s.days_since != null ? s.days_since + " days ago" : "—"],
             ].map(([label, v]) => (
               <div key={label} style={{
                 padding: "8px 10px",
@@ -407,6 +437,42 @@ export default function SupplierDetailPage({ id }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete supplier"
+        message={`Remove ${s.name} from the dashboard? You can restore them later from this page.`}
+        confirmLabel="Delete"
+        confirmStyle="danger"
+        onConfirm={() => {
+          deleteSuppliers([id]);
+          setConfirmDelete(false);
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
+      <SupplierFormModal
+        open={editOpen}
+        initialData={s}
+        onSave={(data) => updateSupplier(id, data)}
+        onClose={() => setEditOpen(false)}
+      />
+
+      <LogPickupModal
+        open={pickupOpen}
+        supplierName={s.name}
+        onConfirm={() => logPickup(id)}
+        onClose={() => setPickupOpen(false)}
+      />
+
+      <RateModal
+        open={rateOpen}
+        title="Set new rate"
+        supplierName={s.name}
+        currentPct={s.pct_lme}
+        onSave={(pct) => updateSupplier(id, { pct_lme: pct })}
+        onClose={() => setRateOpen(false)}
+      />
     </div>
   );
 }

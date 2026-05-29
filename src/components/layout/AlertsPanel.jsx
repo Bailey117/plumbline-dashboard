@@ -10,7 +10,7 @@ const SEV_COLORS = {
 
 const CATS = ["all", "market", "pickups", "rates", "contracts", "sap"];
 
-function AlertItem({ a }) {
+function AlertItem({ a, onDismiss }) {
   const sev = SEV_COLORS[a.sev] || SEV_COLORS.info;
   return (
     <div style={{
@@ -29,9 +29,16 @@ function AlertItem({ a }) {
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 500 }}>{a.title}</span>
-          <span style={{ fontSize: 11, color: "var(--dim)", whiteSpace: "nowrap" }}>
-            {a.t}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: "var(--dim)", whiteSpace: "nowrap" }}>
+              {a.t}
+            </span>
+            <button onClick={onDismiss} style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--dim)', fontSize: 14, padding: '0 2px',
+              lineHeight: 1, flexShrink: 0,
+            }}>×</button>
+          </div>
         </div>
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, lineHeight: 1.4 }}>
           {a.body}
@@ -47,9 +54,10 @@ function AlertItem({ a }) {
 export default function AlertsPanel({ open, onClose }) {
   const { alerts } = useAlerts();
   const [cat, setCat] = React.useState("all");
+  const [dismissed, setDismissed] = React.useState(new Set());
 
-  const filtered = cat === "all" ? alerts : alerts.filter(a => a.cat === cat);
-  const todayCount = alerts.filter(a => a.date === "today").length;
+  const filtered = (cat === "all" ? alerts : alerts.filter(a => a.cat === cat)).filter(a => !dismissed.has(a.id));
+  const todayCount = alerts.filter(a => a.date === "today" && !dismissed.has(a.id)).length;
 
   // Close on Escape
   useEffect(() => {
@@ -162,7 +170,13 @@ export default function AlertsPanel({ open, onClose }) {
               No alerts in this category
             </div>
           ) : (
-            filtered.map(a => <AlertItem key={a.id} a={a} />)
+            filtered.map(a => (
+              <AlertItem
+                key={a.id}
+                a={a}
+                onDismiss={() => setDismissed(prev => new Set([...prev, a.id]))}
+              />
+            ))
           )}
         </div>
       </div>

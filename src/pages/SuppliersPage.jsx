@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { useSuppliers, useMarketData, fmt } from '../api/hooks';
+import { useSuppliers, useMarketData, fmt, useDeletedSuppliers, useSupplierData } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
 import { SortableHeader, btnPrimary, Sparkline, mono } from '../components/ui';
 import { stateColor } from '../theme';
+import ConfirmDialog from '../components/ConfirmDialog';
+import SupplierFormModal from '../components/SupplierFormModal';
 
 const COLS = "26px 2.1fr 0.6fr 0.6fr 0.9fr 0.9fr 0.8fr 0.9fr 1.2fr 0.8fr";
 
@@ -107,6 +109,8 @@ export default function SuppliersPage() {
   const { suppliers } = useSuppliers();
   const { market } = useMarketData();
   const { setRoute } = useRoute();
+  const { deleteSuppliers } = useDeletedSuppliers();
+  const { addSupplier } = useSupplierData();
 
   const [sortKey, setSortKey] = useState("pct_lme");
   const [sortDir, setSortDir] = useState("desc");
@@ -121,6 +125,12 @@ export default function SuppliersPage() {
   // Bulk action dropdowns
   const [bulkZone, setBulkZone] = useState("");
   const [bulkState, setBulkState] = useState("");
+
+  // Delete confirmation dialog
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Add supplier modal
+  const [addOpen, setAddOpen] = useState(false);
 
   const handleSort = (k) => {
     if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -215,7 +225,7 @@ export default function SuppliersPage() {
           </h1>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button style={btnPrimary}>+ Add supplier</button>
+          <button style={btnPrimary} onClick={() => setAddOpen(true)}>+ Add supplier</button>
         </div>
       </div>
 
@@ -466,6 +476,23 @@ export default function SuppliersPage() {
 
           <span style={{ width: 1, height: 20, background: "var(--line-2)" }} />
           <button
+            onClick={() => setConfirmDelete({ ids: [...selected] })}
+            style={{
+              padding: "5px 12px",
+              fontSize: 12,
+              border: "1px solid var(--down)",
+              background: "rgba(209,69,69,0.08)",
+              color: "var(--down)",
+              borderRadius: 7,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontWeight: 500,
+            }}
+          >
+            Delete ({selected.size})
+          </button>
+          <span style={{ width: 1, height: 20, background: "var(--line-2)" }} />
+          <button
             onClick={() => setSelected(new Set())}
             style={{
               background: "transparent",
@@ -481,6 +508,27 @@ export default function SuppliersPage() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete suppliers"
+        message={`Remove ${confirmDelete?.ids?.length || 0} supplier${(confirmDelete?.ids?.length || 0) !== 1 ? 's' : ''} from the dashboard? This can be undone by restoring them from the supplier detail page.`}
+        confirmLabel="Delete"
+        confirmStyle="danger"
+        onConfirm={() => {
+          deleteSuppliers(confirmDelete.ids);
+          setSelected(new Set());
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
+
+      <SupplierFormModal
+        open={addOpen}
+        initialData={null}
+        onSave={(data) => addSupplier(data)}
+        onClose={() => setAddOpen(false)}
+      />
     </div>
   );
 }

@@ -11,6 +11,21 @@ export default function ReportsPage() {
   const { volume_daily, spend_daily } = useVolumeData();
   const [reportTab, setReportTab] = useState("market");
 
+  const handleExportCSV = () => {
+    const headers = ['Supplier', 'State', 'Zone', '% LME', 'AUD/t', 'Freight', 'Landed', 'YTD Tonnes', 'YTD Spend', 'Contract Expires'];
+    const rows = [...suppliers].sort((a, b) => b.ytd_spend_aud - a.ytd_spend_aud).map(s => [
+      s.name, s.state, s.zone, s.pct_lme, s.price_aud_t.toFixed(2),
+      s.freight_aud_t.toFixed(2), s.landed_aud_t.toFixed(2),
+      s.ytd_tonnes.toFixed(1), s.ytd_spend_aud, s.contract_expires || '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'plumbline-suppliers.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const totalYtdSpend = suppliers.reduce((a, s) => a + s.ytd_spend_aud, 0);
   const totalYtdTonnes = suppliers.reduce((a, s) => a + s.ytd_tonnes, 0);
   const avgLanded = suppliers.reduce((a, s) => a + s.landed_aud_t, 0) / suppliers.length;
@@ -45,12 +60,15 @@ export default function ReportsPage() {
           </h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button style={{
-            padding: "7px 14px", fontSize: 12, fontWeight: 500,
-            border: "1px solid var(--line-2)",
-            background: "var(--panel)", color: "var(--text)",
-            borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
-          }}>
+          <button
+            onClick={handleExportCSV}
+            style={{
+              padding: "7px 14px", fontSize: 12, fontWeight: 500,
+              border: "1px solid var(--line-2)",
+              background: "var(--panel)", color: "var(--text)",
+              borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
             Export CSV
           </button>
           <button style={{
