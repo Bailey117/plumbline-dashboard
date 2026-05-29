@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { RouteProvider, useRoute } from './context/RouteContext';
 import AppShell from './components/layout/AppShell';
 import { applyTheme } from './theme';
+import { MarketDataProvider } from './context/MarketDataContext';
 import { ImportDataProvider } from './context/ImportDataContext';
 import { FreightZonesProvider } from './context/FreightZonesContext';
 import { DeletedSuppliersProvider } from './context/DeletedSuppliersContext';
@@ -16,6 +17,7 @@ import RatesPage from './pages/RatesPage';
 import FreightPage from './pages/FreightPage';
 import ReportsPage from './pages/ReportsPage';
 import SAPImportPage from './pages/SAPImportPage';
+import MarketPage from './pages/MarketPage';
 
 function PageRouter() {
   const { route } = useRoute();
@@ -37,6 +39,8 @@ function PageRouter() {
       return <ReportsPage />;
     case "import":
       return <SAPImportPage />;
+    case "market":
+      return <MarketPage />;
     default:
       return <OverviewPage />;
   }
@@ -57,16 +61,18 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ImportDataProvider>
-      <FreightZonesProvider>
-        <DeletedSuppliersProvider>
-          <SupplierDataProvider>
-            <RouteProvider initialRoute={{ name: "overview" }}>
-              <AppInner />
-            </RouteProvider>
-          </SupplierDataProvider>
-        </DeletedSuppliersProvider>
-      </FreightZonesProvider>
-    </ImportDataProvider>
+    <MarketDataProvider>
+      <ImportDataProvider>
+        <FreightZonesProvider>
+          <DeletedSuppliersProvider>
+            <SupplierDataProvider>
+              <RouteProvider initialRoute={{ name: "overview" }}>
+                <AppInner />
+              </RouteProvider>
+            </SupplierDataProvider>
+          </DeletedSuppliersProvider>
+        </FreightZonesProvider>
+      </ImportDataProvider>
+    </MarketDataProvider>
   );
 }

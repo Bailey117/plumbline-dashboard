@@ -86,7 +86,7 @@ function WhatIfCard({ market, freightAt }) {
   );
 }
 
-export default function OverviewPage({ tweaks }) {
+export default function OverviewPage() {
   const { market, history } = useMarketData();
   const { states } = useStates();
   const { alerts } = useAlerts();
@@ -111,7 +111,7 @@ export default function OverviewPage({ tweaks }) {
   const stateVals = Object.fromEntries(states.map(s => [s.code, s.monthly_tonnes]));
   const activeState = hoverState ? states.find(s => s.code === hoverState) : null;
 
-  const chartMode = tweaks?.chartStyle || "area";
+  const chartMode = "area";
 
   const warnAlerts = alerts.filter(a => a.sev === "warn" || a.sev === "alert").slice(0, 3);
 

@@ -11,6 +11,7 @@ const NAV_TABS = [
   { label: "Rates",     name: "rates" },
   { label: "Freight",   name: "freight" },
   { label: "Reports",   name: "reports" },
+  { label: "Market",    name: "market" },
   { label: "Import",    name: "import",  badge: "SAP" },
 ];
 

@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { useMarketDataCtx } from '../context/MarketDataContext';
 import {
   market as mockMarket,
   history as mockHistory,
@@ -91,7 +92,10 @@ function useImportState() {
 
 // ── Market data ─────────────────────────────────────────────────────────────
 export function useMarketData() {
-  return { market: mockMarket, history: mockHistory, loading: false };
+  const ctx = useMarketDataCtx();
+  // ctx may be null if somehow used outside provider
+  const market = ctx ? ctx.market : mockMarket;
+  return { market, history: mockHistory, loading: false };
 }
 
 // ── Suppliers ────────────────────────────────────────────────────────────────
