@@ -4,6 +4,7 @@ import { useRoute } from '../context/RouteContext';
 import { Sparkline } from '../components/ui';
 import { stateColor } from '../theme';
 import RateModal from '../components/RateModal';
+import { useToast } from '../components/Toast';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 
@@ -12,6 +13,7 @@ export default function RatesPage() {
   const { market } = useMarketData();
   const { setRoute } = useRoute();
   const { updateSupplier } = useSupplierData();
+  const showToast = useToast();
   const [filter, setFilter] = useState("all");
   const [sortDir, setSortDir] = useState("desc");
   const [bulkRateOpen, setBulkRateOpen] = useState(false);
@@ -27,9 +29,9 @@ export default function RatesPage() {
     return list;
   }, [suppliers, filter, sortDir]);
 
-  const avgPct = (suppliers.reduce((a, s) => a + s.pct_lme, 0) / suppliers.length).toFixed(1);
-  const maxPct = Math.max(...suppliers.map(s => s.pct_lme));
-  const minPct = Math.min(...suppliers.map(s => s.pct_lme));
+  const avgPct = suppliers.length ? (suppliers.reduce((a, s) => a + s.pct_lme, 0) / suppliers.length).toFixed(1) : "0";
+  const maxPct = suppliers.length ? Math.max(...suppliers.map(s => s.pct_lme)) : 0;
+  const minPct = suppliers.length ? Math.min(...suppliers.map(s => s.pct_lme)) : 0;
 
   return (
     <div style={{ padding: 20 }}>
@@ -116,16 +118,19 @@ export default function RatesPage() {
         </div>
         <div style={{ display: "flex", gap: 2, height: 36 }}>
           {(() => {
+            const lo = Math.floor((minPct - 1) / 5) * 5;
+            const hi = Math.ceil((maxPct + 1) / 5) * 5;
+            const step = Math.max(1, Math.round((hi - lo) / 10));
             const buckets = Array.from({ length: 10 }, (_, i) => ({
-              min: 55 + i * 3,
-              max: 55 + (i + 1) * 3,
+              min: lo + i * step,
+              max: lo + (i + 1) * step,
               count: 0,
             }));
             suppliers.forEach(s => {
-              const idx = Math.min(9, Math.floor((s.pct_lme - 55) / 3));
+              const idx = Math.min(9, Math.floor((s.pct_lme - lo) / step));
               if (idx >= 0 && idx < 10) buckets[idx].count++;
             });
-            const maxCount = Math.max(...buckets.map(b => b.count));
+            const maxCount = Math.max(...buckets.map(b => b.count), 1);
             return buckets.map((b, i) => (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                 <div style={{
@@ -200,7 +205,10 @@ export default function RatesPage() {
         title="Bulk update rates"
         supplierName={dueSoon.length + ' suppliers due for review'}
         currentPct={+avgPct}
-        onSave={(pct) => { dueSoon.forEach(s => updateSupplier(s.id, { pct_lme: pct })); }}
+        onSave={(pct) => {
+          dueSoon.forEach(s => updateSupplier(s.id, { pct_lme: pct }));
+          showToast(`Updated ${dueSoon.length} supplier rate${dueSoon.length !== 1 ? 's' : ''} to ${pct}%`);
+        }}
         onClose={() => setBulkRateOpen(false)}
       />
 
@@ -233,8 +241,8 @@ export default function RatesPage() {
         <div style={{ maxHeight: "calc(100vh - 420px)", overflow: "auto" }}>
           {filtered.map(s => {
             const sc = stateColor(s.state);
-            const lastRate = s.rate_history[s.rate_history.length - 1];
-            const prevRate = s.rate_history[s.rate_history.length - 2];
+            const lastRate = s.rate_history[s.rate_history.length - 1] || { pct: s.pct_lme, month: '—', set_by: '—' };
+            const prevRate = s.rate_history.length >= 2 ? s.rate_history[s.rate_history.length - 2] : lastRate;
             const delta = lastRate.pct - prevRate.pct;
 
             return (

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSuppliers, useMarketData, fmt, useDeletedSuppliers, useSupplierData } from '../api/hooks';
 import { useRoute } from '../context/RouteContext';
+import { useToast } from '../components/Toast';
 import { SortableHeader, btnPrimary, Sparkline, mono } from '../components/ui';
 import { stateColor } from '../theme';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -24,9 +25,9 @@ const COL_DEFS = [
 const AU_STATES = ["NSW","VIC","QLD","WA","SA","TAS","NT","ACT"];
 const ZONES  = ["Z1","Z2","Z3","Z4","Z5"];
 
-function InlineSupplierRow({ s, onClick, cols, checked, onCheck, effectiveZone, effectiveState }) {
-  const zone = effectiveZone || s.zone;
-  const state = effectiveState || s.state;
+function InlineSupplierRow({ s, onClick, cols, checked, onCheck }) {
+  const zone = s.zone;
+  const state = s.state;
   const sinceColor = s.days_since > 45 ? "var(--down)" : s.days_since > 20 ? "var(--warn)" : "var(--up)";
   const sc = stateColor(state);
   return (
@@ -108,19 +109,19 @@ function InlineSupplierRow({ s, onClick, cols, checked, onCheck, effectiveZone, 
 export default function SuppliersPage() {
   const { suppliers } = useSuppliers();
   const { market } = useMarketData();
-  const { setRoute } = useRoute();
+  const { route, setRoute } = useRoute();
   const { deleteSuppliers } = useDeletedSuppliers();
-  const { addSupplier } = useSupplierData();
+  const { addSupplier, updateSupplier } = useSupplierData();
+  const showToast = useToast();
 
   const [sortKey, setSortKey] = useState("pct_lme");
   const [sortDir, setSortDir] = useState("desc");
-  const [filterState, setFilterState] = useState("all");
+  const [filterState, setFilterState] = useState(route.filterState || "all");
   const [filterZone, setFilterZone] = useState("all");
   const [search, setSearch] = useState("");
 
   // Bulk select state
   const [selected, setSelected] = useState(new Set());
-  const [overrides, setOverrides] = useState({});
 
   // Bulk action dropdowns
   const [bulkZone, setBulkZone] = useState("");
@@ -139,8 +140,8 @@ export default function SuppliersPage() {
 
   const sorted = useMemo(() => {
     let list = [...suppliers];
-    if (filterState !== "all") list = list.filter(s => (overrides[s.id]?.state || s.state) === filterState);
-    if (filterZone !== "all") list = list.filter(s => (overrides[s.id]?.zone || s.zone) === filterZone);
+    if (filterState !== "all") list = list.filter(s => s.state === filterState);
+    if (filterZone !== "all") list = list.filter(s => s.zone === filterZone);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(s => s.name.toLowerCase().includes(q));
@@ -151,7 +152,7 @@ export default function SuppliersPage() {
       return sortDir === "asc" ? av - bv : bv - av;
     });
     return list;
-  }, [suppliers, sortKey, sortDir, filterState, filterZone, search, overrides]);
+  }, [suppliers, sortKey, sortDir, filterState, filterZone, search]);
 
   const allChecked = sorted.length > 0 && sorted.every(s => selected.has(s.id));
   const someChecked = sorted.some(s => selected.has(s.id));
@@ -182,21 +183,15 @@ export default function SuppliersPage() {
   };
 
   const applyBulkZone = (zone) => {
-    setOverrides(prev => {
-      const next = { ...prev };
-      selected.forEach(id => { next[id] = { ...(next[id] || {}), zone }; });
-      return next;
-    });
+    selected.forEach(id => updateSupplier(id, { zone }));
     setBulkZone("");
+    showToast(`Zone set to ${zone} for ${selected.size} supplier${selected.size !== 1 ? 's' : ''}`);
   };
 
   const applyBulkState = (state) => {
-    setOverrides(prev => {
-      const next = { ...prev };
-      selected.forEach(id => { next[id] = { ...(next[id] || {}), state }; });
-      return next;
-    });
+    selected.forEach(id => updateSupplier(id, { state }));
     setBulkState("");
+    showToast(`State set to ${state} for ${selected.size} supplier${selected.size !== 1 ? 's' : ''}`);
   };
 
   const totalMonthly = sorted.reduce((a, s) => a + s.avg_monthly_t, 0);
@@ -394,8 +389,6 @@ export default function SuppliersPage() {
               onClick={() => setRoute({ name: "supplier", id: s.id })}
               checked={selected.has(s.id)}
               onCheck={() => toggleOne(s.id)}
-              effectiveZone={overrides[s.id]?.zone}
-              effectiveState={overrides[s.id]?.state}
             />
           ))}
           {sorted.length === 0 && (

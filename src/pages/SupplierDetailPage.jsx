@@ -9,6 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SupplierFormModal from '../components/SupplierFormModal';
 import RateModal from '../components/RateModal';
 import LogPickupModal from '../components/LogPickupModal';
+import { useToast } from '../components/Toast';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 
@@ -18,6 +19,7 @@ export default function SupplierDetailPage({ id }) {
   const { setRoute } = useRoute();
   const { deleteSuppliers, restoreSupplier } = useDeletedSuppliers();
   const { updateSupplier, logPickup } = useSupplierData();
+  const showToast = useToast();
   const [tab, setTab] = useState("overview");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -454,14 +456,14 @@ export default function SupplierDetailPage({ id }) {
       <SupplierFormModal
         open={editOpen}
         initialData={s}
-        onSave={(data) => updateSupplier(id, data)}
+        onSave={(data) => { updateSupplier(id, data); showToast('Supplier updated'); }}
         onClose={() => setEditOpen(false)}
       />
 
       <LogPickupModal
         open={pickupOpen}
         supplierName={s.name}
-        onConfirm={() => logPickup(id)}
+        onConfirm={() => { logPickup(id); showToast('Pickup logged'); }}
         onClose={() => setPickupOpen(false)}
       />
 
@@ -470,7 +472,7 @@ export default function SupplierDetailPage({ id }) {
         title="Set new rate"
         supplierName={s.name}
         currentPct={s.pct_lme}
-        onSave={(pct) => updateSupplier(id, { pct_lme: pct })}
+        onSave={(pct) => { updateSupplier(id, { pct_lme: pct }); showToast(`Rate updated to ${pct}%`); }}
         onClose={() => setRateOpen(false)}
       />
     </div>

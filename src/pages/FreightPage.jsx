@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMarketData, fmt } from '../api/hooks';
 import { useFreightZones } from '../context/FreightZonesContext';
 import FreightCurve from '../components/charts/FreightCurve';
+import { useToast } from '../components/Toast';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 const ZONE_COLORS = ["#5B5BD6","#0E8F5E","#A77D24","#D14545","#7C3AED"];
@@ -9,6 +10,7 @@ const ZONE_COLORS = ["#5B5BD6","#0E8F5E","#A77D24","#D14545","#7C3AED"];
 export default function FreightPage() {
   const { market } = useMarketData();
   const { zones: freight_zones, updateZone, resetZones } = useFreightZones();
+  const showToast = useToast();
   const [diesel, setDiesel] = useState(market.diesel_gate_aud);
   const [lme, setLme] = useState(market.lme_pb_aud);
   const [pct, setPct] = useState(76);
@@ -50,12 +52,14 @@ export default function FreightPage() {
     });
     setEditMode(false);
     setEditValues({});
+    showToast('Freight zones saved');
   };
 
   const handleReset = () => {
     resetZones();
     setEditMode(false);
     setEditValues({});
+    showToast('Zones reset to defaults', 'warn');
   };
 
   return (

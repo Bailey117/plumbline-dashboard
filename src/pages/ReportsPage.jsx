@@ -71,12 +71,15 @@ export default function ReportsPage() {
           >
             Export CSV
           </button>
-          <button style={{
-            padding: "7px 14px", fontSize: 12, fontWeight: 500,
-            border: "1px solid var(--text)",
-            background: "var(--text)", color: "var(--panel)",
-            borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
-          }}>
+          <button
+            onClick={() => window.print()}
+            style={{
+              padding: "7px 14px", fontSize: 12, fontWeight: 500,
+              border: "1px solid var(--text)",
+              background: "var(--text)", color: "var(--panel)",
+              borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
             Export PDF
           </button>
         </div>

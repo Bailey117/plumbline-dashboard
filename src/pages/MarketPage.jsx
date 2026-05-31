@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useMarketDataCtx } from '../context/MarketDataContext';
 import { parseRBAFile, parseAIPFile, parseLMEFile } from '../utils/marketParsers';
-import { fmt } from '../api/hooks';
+import { fmt, useSuppliers } from '../api/hooks';
 
 const mono = '"Geist Mono", ui-monospace, "SF Mono", monospace';
 
@@ -138,8 +138,19 @@ function FileUploadButton({ label, accept, onFile, loading, disabled }) {
 
 export default function MarketPage() {
   const { market, overrides, setMarketValue, resetField, resetAll } = useMarketDataCtx();
+  const { suppliers } = useSuppliers();
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState({});
+
+  const supplierAvgPct = suppliers.length
+    ? suppliers.reduce((a, s) => a + s.pct_lme, 0) / suppliers.length / 100
+    : 0.75;
+  const supplierMaxPct = suppliers.length
+    ? Math.max(...suppliers.map(s => s.pct_lme)) / 100
+    : 0.80;
+  const supplierMinPct = suppliers.length
+    ? Math.min(...suppliers.map(s => s.pct_lme)) / 100
+    : 0.70;
 
   const setLoad = (key, val) => setLoading(p => ({ ...p, [key]: val }));
   const setErr = (key, msg) => setErrors(p => ({ ...p, [key]: msg }));
@@ -392,8 +403,16 @@ export default function MarketPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {[
             ['LME Lead AUD/t', fmt.aud(market.lme_pb_aud, 2), `${fmt.usd(market.lme_pb_usd, 2)} ÷ ${market.aud_usd.toFixed(4)}`],
-            ['LME AUD @ 75%', fmt.aud(market.lme_pb_aud * 0.75, 0) + '/t', '75% of LME (sample rate)'],
-            ['LME AUD @ 80%', fmt.aud(market.lme_pb_aud * 0.80, 0) + '/t', '80% of LME (sample rate)'],
+            [
+              `Portfolio avg (${(supplierAvgPct * 100).toFixed(1)}%)`,
+              fmt.aud(market.lme_pb_aud * supplierAvgPct, 0) + '/t',
+              `Avg of ${suppliers.length} active supplier rates`,
+            ],
+            [
+              `Highest rate (${(supplierMaxPct * 100).toFixed(1)}%)`,
+              fmt.aud(market.lme_pb_aud * supplierMaxPct, 0) + '/t',
+              `Lowest rate: ${(supplierMinPct * 100).toFixed(1)}% · ${fmt.aud(market.lme_pb_aud * supplierMinPct, 0)}/t`,
+            ],
           ].map(([label, val, sub]) => (
             <div key={label} style={{
               padding: '10px 12px', border: '1px solid var(--line)',

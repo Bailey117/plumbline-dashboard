@@ -75,6 +75,7 @@ export default function StatesPage() {
             onHover={setHover}
             highlight={hover}
             getLabel={c => stateVals[c] != null ? Math.round(stateVals[c]) + "t" : "—"}
+            onClick={code => setRoute({ name: "suppliers", filterState: code })}
             height={300}
           />
 
@@ -142,6 +143,7 @@ export default function StatesPage() {
                 key={s.code}
                 onMouseEnter={() => setHover(s.code)}
                 onMouseLeave={() => setHover(null)}
+                onClick={() => setRoute({ name: "suppliers", filterState: s.code })}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "0.5fr 1.6fr 0.6fr 0.8fr 1fr 0.8fr",
@@ -199,41 +201,50 @@ export default function StatesPage() {
                 <div style={{ fontSize: 13, fontWeight: 600 }}>
                   {activeState.name} suppliers
                 </div>
-                <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                  {activeSuppliers.length} active
-                </span>
-              </div>
-              {activeSuppliers.slice(0, 6).map(s => (
-                <div
-                  key={s.id}
-                  onClick={() => setRoute({ name: "supplier", id: s.id })}
+                <button
+                  onClick={() => setRoute({ name: "suppliers", filterState: hover })}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto auto auto",
-                    padding: "9px 16px",
-                    gap: 12,
-                    alignItems: "center",
-                    fontSize: 12,
-                    borderBottom: "1px solid var(--line)",
-                    cursor: "pointer",
+                    fontSize: 12, color: "var(--accent)",
+                    background: "transparent", border: "none",
+                    cursor: "pointer", fontFamily: "inherit", padding: 0,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={{ fontWeight: 500 }}>{s.name}</span>
-                  <span style={{
-                    padding: "2px 6px", borderRadius: 4,
-                    background: "var(--accent-soft)", color: "var(--accent)",
-                    fontSize: 10, fontWeight: 600, fontFamily: mono,
-                  }}>
-                    {s.zone}
-                  </span>
-                  <span style={{ fontFamily: mono }}>{s.pct_lme}%</span>
-                  <span style={{ fontFamily: mono, fontWeight: 600 }}>
-                    {fmt.aud(s.landed_aud_t, 0)}
-                  </span>
-                </div>
-              ))}
+                  View all {activeSuppliers.length} →
+                </button>
+              </div>
+              <div style={{ maxHeight: 280, overflow: "auto" }}>
+                {activeSuppliers.map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => setRoute({ name: "supplier", id: s.id })}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto auto auto",
+                      padding: "9px 16px",
+                      gap: 12,
+                      alignItems: "center",
+                      fontSize: 12,
+                      borderBottom: "1px solid var(--line)",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ fontWeight: 500 }}>{s.name}</span>
+                    <span style={{
+                      padding: "2px 6px", borderRadius: 4,
+                      background: "var(--accent-soft)", color: "var(--accent)",
+                      fontSize: 10, fontWeight: 600, fontFamily: mono,
+                    }}>
+                      {s.zone}
+                    </span>
+                    <span style={{ fontFamily: mono }}>{s.pct_lme}%</span>
+                    <span style={{ fontFamily: mono, fontWeight: 600 }}>
+                      {fmt.aud(s.landed_aud_t, 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

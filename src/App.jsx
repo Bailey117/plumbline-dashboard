@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { RouteProvider, useRoute } from './context/RouteContext';
 import AppShell from './components/layout/AppShell';
+import { ToastProvider } from './components/Toast';
 import { applyTheme } from './theme';
 import { MarketDataProvider } from './context/MarketDataContext';
 import { ImportDataProvider } from './context/ImportDataContext';
@@ -67,7 +68,9 @@ export default function App() {
           <DeletedSuppliersProvider>
             <SupplierDataProvider>
               <RouteProvider initialRoute={{ name: "overview" }}>
-                <AppInner />
+                <ToastProvider>
+                  <AppInner />
+                </ToastProvider>
               </RouteProvider>
             </SupplierDataProvider>
           </DeletedSuppliersProvider>
