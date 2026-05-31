@@ -165,7 +165,46 @@ export function useSupplier(id) {
     return { supplier: applyOverrides(customMatch, overrides), isDeleted: false, loading: false };
   }
 
-  const baseSupplier = mockSuppliers.find(s => s.id === id) || mockSuppliers[0];
+  // Check SAP-created suppliers
+  if (id.startsWith('sap_')) {
+    const code = id.slice(4);
+    const sapStat = importState?.newSuppliers?.find(s => s.code === code);
+    if (sapStat) {
+      const sapSupplier = {
+        id,
+        name: sapStat.name,
+        code: sapStat.code,
+        state: 'NSW',
+        zone: 'Z1',
+        pct_lme: 75,
+        avg_monthly_t: sapStat.avgMonthly || 0,
+        ytd_tonnes: sapStat.ytdTonnes || 0,
+        ytd_spend_aud: sapStat.ytdSpend || 0,
+        days_since: sapStat.daysSince,
+        price_aud_t: sapStat.latestNetPrice || 0,
+        freight_aud_t: 52,
+        landed_aud_t: (sapStat.latestNetPrice || 0) + 52,
+        volume_12m: sapStat.volume12m || new Array(12).fill(0),
+        price_series: sapStat.volume12m || new Array(12).fill(0),
+        site_count: 1,
+        sites: [],
+        contract_expires: null,
+        rate_history: [
+          { month: 'Now', pct: 75, set_by: 'SAP Import' },
+          { month: 'Now', pct: 75, set_by: 'SAP Import' },
+        ],
+        rate_change_due: false,
+        isNew: true,
+      };
+      return { supplier: applyOverrides(sapSupplier, overrides), isDeleted: false, loading: false };
+    }
+    return { supplier: null, isDeleted: false, loading: false };
+  }
+
+  const baseSupplier = mockSuppliers.find(s => s.id === id);
+  if (!baseSupplier) {
+    return { supplier: null, isDeleted: false, loading: false };
+  }
   let supplier = baseSupplier;
   if (importState?.supplierStats) {
     supplier = mergeSupplierData(baseSupplier, importState.supplierStats);

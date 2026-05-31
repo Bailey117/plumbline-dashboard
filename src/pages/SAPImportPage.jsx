@@ -224,12 +224,24 @@ function StepReview({ parseResult, onBack, onApply }) {
   }));
 
   const matchedCount = rows.filter(r => r.match).length;
-  const unmatchedCount = rows.filter(r => !r.match).length;
+  const unmatchedRows = rows.filter(r => !r.match);
+  const unmatchedCount = unmatchedRows.length;
   const createCount = Object.values(createNew).filter(Boolean).length;
+  const allUnmatchedCreating = unmatchedCount > 0 && unmatchedRows.every(r => createNew[r.stat.code]);
 
   const totalTonnes = supplierStats.reduce((a, s) => a + s.ytdTonnes, 0);
 
   const canApply = matchedCount > 0 || createCount > 0;
+
+  const handleCreateAll = () => {
+    if (allUnmatchedCreating) {
+      setCreateNew({});
+    } else {
+      const next = {};
+      unmatchedRows.forEach(r => { next[r.stat.code] = true; });
+      setCreateNew(next);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -329,6 +341,25 @@ function StepReview({ parseResult, onBack, onApply }) {
           )}
           <span>·</span>
           <span>{supplierStats.length} total</span>
+          {unmatchedCount > 0 && (
+            <button
+              onClick={handleCreateAll}
+              style={{
+                marginLeft: 'auto',
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                border: '1px solid ' + (allUnmatchedCreating ? 'rgba(14,143,94,0.4)' : 'var(--line-2)'),
+                background: allUnmatchedCreating ? 'rgba(14,143,94,0.1)' : 'transparent',
+                color: allUnmatchedCreating ? '#0E8F5E' : 'var(--muted)',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {allUnmatchedCreating ? '✓ Creating all unmatched' : `＋ Create all unmatched (${unmatchedCount})`}
+            </button>
+          )}
         </div>
       </div>
 

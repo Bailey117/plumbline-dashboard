@@ -111,6 +111,12 @@ export default function OverviewPage() {
   const stateVals = Object.fromEntries(states.map(s => [s.code, s.monthly_tonnes]));
   const activeState = hoverState ? states.find(s => s.code === hoverState) : null;
 
+  const RANGE_DAYS = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365, "All": Infinity };
+  const rangeN = RANGE_DAYS[range] || 90;
+  const slicedDays = rangeN === Infinity ? history.days : history.days.slice(-rangeN);
+  const slicedLmeAud = rangeN === Infinity ? history.lme_pb_aud : history.lme_pb_aud.slice(-rangeN);
+  const slicedLmeUsd = rangeN === Infinity ? history.lme_pb_usd : history.lme_pb_usd.slice(-rangeN);
+
   const chartMode = "area";
 
   const warnAlerts = alerts.filter(a => a.sev === "warn" || a.sev === "alert").slice(0, 3);
@@ -206,8 +212,8 @@ export default function OverviewPage() {
           </div>
           <div style={{ flex: 1, minHeight: 200 }}>
             <LineChart
-              data={chartCurrency === "AUD" ? history.lme_pb_aud : history.lme_pb_usd}
-              labels={history.days.map(d => d.slice(5))}
+              data={chartCurrency === "AUD" ? slicedLmeAud : slicedLmeUsd}
+              labels={slicedDays.map(d => d.slice(5))}
               width={820} height={240}
               mode={chartMode}
               stroke="var(--chart-line)"
@@ -256,7 +262,8 @@ export default function OverviewPage() {
             onHover={setHoverState}
             highlight={hoverState}
             getLabel={c => stateVals[c] != null ? Math.round(stateVals[c]) + "t" : "—"}
-            height={200}
+            onClick={() => setRoute({ name: "states" })}
+            height={220}
           />
 
           {/* State hover detail or list */}
